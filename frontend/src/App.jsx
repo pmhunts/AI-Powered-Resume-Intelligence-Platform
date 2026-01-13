@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Toaster, toast } from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
 import Sidebar from './components/Sidebar';
 import LandingPage from './components/LandingPage';
 import JDInputView from './components/JDInputView';
@@ -8,64 +8,20 @@ import ResumeEditor from './components/ResumeEditor';
 import GapAnalysisDashboard from './components/GapAnalysisDashboard';
 import InterviewerMode from './components/InterviewerMode';
 import ScoreWidget from './components/ScoreWidget';
-import initialResumeData from './data/initialData';
-import apiService from './services/apiService';
+import { ResumeProvider, useResume } from './context/ResumeContext';
 
-function App() {
-  const [currentView, setCurrentView] = useState('LANDING'); // LANDING, JD_INPUT, DASHBOARD, EDITOR
-  const [resumeData, setResumeData] = useState(initialResumeData);
-  const [jdText, setJdText] = useState('');
-  const [analysisResults, setAnalysisResults] = useState(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  // Real-time Analysis Logic with Backend API
-  const runAnalysis = async (text) => {
-    console.log("Starting Analysis with text length:", text.length);
-    setJdText(text);
-    setIsAnalyzing(true);
-    const toastId = toast.loading('Analyzing JD...');
-
-    try {
-      // Step 1: Analyze JD to extract structured data (skills, role, etc.)
-      console.log("Step 1: Calling analyzeJD...");
-      const jdAnalysisResponse = await apiService.analyzeJD(text);
-      console.log("Step 1 Response:", jdAnalysisResponse);
-
-      if (!jdAnalysisResponse.success) {
-        throw new Error(jdAnalysisResponse.error || 'JD Analysis failed');
-      }
-
-      const jdData = jdAnalysisResponse.data;
-      toast.loading('Scoring Resume...', { id: toastId });
-
-      // Step 2: Score Resume against the analyzed JD
-      console.log("Step 2: Calling scoreResume with data:", jdData);
-      const response = await apiService.scoreResume(resumeData, {
-        ...jdData,
-        text: text
-      });
-      console.log("Step 2 Response:", response);
-
-      if (response.success) {
-        setAnalysisResults(response.data);
-        setCurrentView('DASHBOARD');
-        toast.dismiss(toastId);
-      } else {
-        throw new Error(response.error || 'Analysis failed');
-      }
-    } catch (error) {
-      console.error("Analysis Failed:", error);
-      toast.error(error.message || "Analysis Failed", { id: toastId });
-      setAnalysisResults(null);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  // PDF Export Handler
-  const handleExportPDF = async () => {
-    await apiService.downloadPDF(resumeData, resumeData.personalInfo?.name || 'Resume');
-  };
+// Main Content Component that consumes the Context
+const AppContent = () => {
+  const {
+    currentView,
+    setCurrentView,
+    resumeData,
+    updateResumeData,
+    runAnalysis,
+    isAnalyzing,
+    analysisResults,
+    exportPDF
+  } = useResume();
 
   const renderView = () => {
     switch (currentView) {
@@ -105,7 +61,7 @@ function App() {
                             </div>
                           )}
                           <button
-                            onClick={handleExportPDF}
+                            onClick={exportPDF}
                             className="bg-primary hover:bg-primary-dark px-6 py-2 rounded-xl text-white font-bold transition-all shadow-lg hover:shadow-primary/25"
                           >
                             Export PDF
@@ -113,7 +69,7 @@ function App() {
                         </div>
                       </div>
                       <div className="flex-1 min-h-0">
-                        <ResumeEditor initialData={resumeData} onUpdate={setResumeData} />
+                        <ResumeEditor initialData={resumeData} onUpdate={updateResumeData} />
                       </div>
                     </div>
                   )}
@@ -142,7 +98,7 @@ function App() {
                               { name: "Skills Match", score: analysisResults?.ats_score?.breakdown?.skill_match || 0 },
                               { name: "Keywords", score: analysisResults?.ats_score?.breakdown?.keyword_coverage || 0 },
                               { name: "Experience", score: analysisResults?.ats_score?.breakdown?.experience_relevance || 0 },
-                              { name: "Formatting", score: analysisResults?.ats_score?.breakdown?.formatting || 0 },
+                              { name: "Formatting", score: analysisResults?.ats_score?.breakdown?.format_compliance || 0 },
                             ]}
                             industryAverage={analysisResults?.ats_score?.industry_average || 68}
                           />
@@ -170,6 +126,10 @@ function App() {
     }
   };
 
+  return renderView();
+};
+
+function App() {
   return (
     <div className="font-sans antialiased text-text-primary bg-bg-primary min-h-screen selection:bg-primary/30">
       <Toaster position="top-right" toastOptions={{
@@ -179,7 +139,9 @@ function App() {
           border: '1px solid rgba(255,255,255,0.1)'
         }
       }} />
-      {renderView()}
+      <ResumeProvider>
+        <AppContent />
+      </ResumeProvider>
     </div>
   );
 }

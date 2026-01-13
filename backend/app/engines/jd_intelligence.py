@@ -19,20 +19,14 @@ class JDIntelligenceEngine:
         }
 
     def analyze(self, text: str) -> Dict[str, Any]:
-        print(f"DEBUG: JDIntelligenceEngine.analyze called with text length {len(text)}")
-        try:
-            doc = self.nlp(text)
-            print("DEBUG: Spacy processing complete")
-            return {
-                "role": self._extract_role(text),
-                "experience_level": self._extract_experience(text),
-                "primary_skills": self._extract_skills(text),
-                "must_have": [], # To be implemented with more complex logic
-                "nice_to_have": []
-            }
-        except Exception as e:
-            print(f"ERROR in JDIntelligenceEngine.analyze: {e}")
-            raise e
+        doc = self.nlp(text)
+        return {
+            "role": self._extract_role(text),
+            "experience_level": self._extract_experience(text),
+            "primary_skills": self._extract_skills(text),
+            "must_have": [], # To be implemented with more complex logic
+            "nice_to_have": []
+        }
 
     def _extract_role(self, text: str) -> str:
         # Simple regex based role extraction
