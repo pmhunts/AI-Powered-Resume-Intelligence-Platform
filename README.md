@@ -1,5 +1,5 @@
 # AI-Powered Resume Intelligence Platform
-*Sept 2024 - Present*
+*November 2025 - Present*
 
 End-to-end career tool combining JD analysis, AI content generation, real-time ATS scoring, and strategic career guidance — serving 500+ users.
 
