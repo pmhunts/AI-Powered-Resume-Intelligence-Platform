@@ -84,6 +84,7 @@ async def health_check():
 async def startup_event():
     """Run on application startup."""
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}")
+    logger.info(f"CORS allowed origins: {settings.CORS_ORIGINS}")
     logger.info("API Documentation available at /docs")
 
 @app.on_event("shutdown")
