@@ -1,13 +1,9 @@
-import json
-from typing import Any, List
-
-from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
+from pydantic_settings import BaseSettings
+from typing import List
+import os
 
 class Settings(BaseSettings):
     """Application configuration settings."""
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
     # API Configuration
     PROJECT_NAME: str = "Resume Intelligence Platform"
@@ -17,42 +13,51 @@ class Settings(BaseSettings):
     # Security Configuration
     SECRET_KEY: str = "CHANGE_THIS_IN_PRODUCTION"
 
-    # CORS Origins - accepts EITHER format from env var:
-    #   JSON array:    ["https://foo.vercel.app","https://bar.vercel.app"]
-    #   Comma string:  https://foo.vercel.app,https://bar.vercel.app
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-    ]
-
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, value: Any) -> List[str]:
-        if isinstance(value, list):
-            return [str(origin).strip() for origin in value if str(origin).strip()]
-
-        if isinstance(value, str):
-            value = value.strip()
-            if not value:
-                return []
-
-            if value.startswith("["):
-                try:
-                    parsed = json.loads(value)
-                    if isinstance(parsed, list):
-                        return [str(origin).strip() for origin in parsed if str(origin).strip()]
-                except json.JSONDecodeError:
-                    pass
-
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-
-        raise ValueError("CORS_ORIGINS must be a list or string")
-
     # Logging
     LOG_LEVEL: str = "INFO"
 
+    # NOTE: CORS_ORIGINS is intentionally NOT a pydantic field.
+    # pydantic-settings tries to JSON-parse List fields from env vars,
+    # which causes crashes when the value isn't valid JSON.
+    # Instead we read it manually via get_cors_origins() below.
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
 
 settings = Settings()
+
+def get_cors_origins() -> List[str]:
+    """
+    Read CORS_ORIGINS from environment variable safely.
+    Accepts multiple formats:
+      - Not set at all → returns default localhost list
+      - JSON array:   ["https://a.com","https://b.com"]
+      - Comma string: https://a.com,https://b.com
+      - Single URL:   https://a.com
+    """
+    raw = os.environ.get("CORS_ORIGINS", "")
+
+    if not raw or not raw.strip():
+        return [
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+        ]
+
+    raw = raw.strip()
+
+    # Try JSON parse first: ["https://a.com","https://b.com"]
+    if raw.startswith("["):
+        import json
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                return [str(u).strip() for u in parsed if str(u).strip()]
+        except Exception:
+            pass  # Fall through to comma split
+
+    # Comma-separated: https://a.com,https://b.com
+    return [u.strip() for u in raw.split(",") if u.strip()]
