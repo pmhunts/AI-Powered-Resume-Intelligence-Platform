@@ -26,6 +26,18 @@ class ContentEnhanceRequest(BaseModel):
     text: str = Field(..., min_length=10, max_length=500, description="Text to enhance")
     jd_context: dict = Field(default={}, description="Job description context")
 
+def dict_to_text(data: dict) -> str:
+    """Convert resume dict to clean plain text for NLP analysis."""
+    parts = []
+    for key, value in data.items():
+        if isinstance(value, list):
+            parts.extend([str(v) for v in value])
+        elif isinstance(value, dict):
+            parts.append(dict_to_text(value))
+        elif value:
+            parts.append(str(value))
+    return " ".join(parts)
+
 @router.post("/enhance-content")
 def enhance_content(request: ContentEnhanceRequest):
     """
@@ -57,9 +69,9 @@ def score_resume(request: ResumeAnalysisRequest):
         if not request.jd_content:
             raise HTTPException(status_code=400, detail="Job description cannot be empty")
         
-        # Convert to text format for analysis
-        resume_text = str(request.resume_content)
-        jd_text = str(request.jd_content)
+        # Convert nested dict payloads into clean text for NLP analysis
+        resume_text = dict_to_text(request.resume_content)
+        jd_text = dict_to_text(request.jd_content)
         
         # Run analysis pipeline
         gaps = gap_analyzer.analyze_gaps(jd_text, resume_text)

@@ -6,8 +6,11 @@ import io
 
 class PDFGenerator:
     def __init__(self):
-        # Setup Jinja2 environment
-        template_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+        # Use absolute path anchored to this file's location
+        # This works regardless of working directory
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        template_dir = os.path.join(base_dir, "..", "templates")
+        template_dir = os.path.normpath(template_dir)
         self.env = Environment(loader=FileSystemLoader(template_dir))
 
     def generate(self, resume_data: Dict[str, Any]) -> bytes:
